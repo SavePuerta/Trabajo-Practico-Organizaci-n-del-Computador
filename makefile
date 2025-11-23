@@ -3,7 +3,7 @@ start:
 
 codificador:
 	cd src && \
-	nasm -f elf64 -g -F dwarf -o codificador.o codificador.asm && \
+	nasm -f elf64 -g -F dwarf -o codificador.o codificador2.asm && \
 	gcc -c main.c -o main.o && \
 	gcc -no-pie -z noexecstack -o codificador main.o codificador.o && \
 	./codificador

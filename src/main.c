@@ -67,12 +67,11 @@ void codificar_archivo() {
         return;
     }
     
-    //input_data, input_size, output_data
     codificar(input_data, input_size, output_data);
     
-    // if (write_text_file("outputTexto.txt", output_data)) {
-    //     printf("Archivo codificado exitosamente: outputTexto.txt\n");
-    // }
+    if (escribir_archivo_de_texto("outputTexto.txt", output_data)) {
+         printf("Archivo codificado exitosamente: outputTexto.txt\n");
+    }
     
     free(input_data);
     free(output_data);
@@ -86,7 +85,8 @@ int main() {
     printf("2. Decodificar\n");
     printf("Seleccione opcion: ");
     
-    int opcion = scanf("%d", &opcion);
+    int opcion; 
+    scanf("%d", &opcion);
         
     
     switch (opcion) {

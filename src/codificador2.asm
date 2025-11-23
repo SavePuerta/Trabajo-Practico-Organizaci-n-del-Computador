@@ -1,158 +1,173 @@
-global codificar
+; ============================================
+; codificador.asm
+; ============================================
 
 section .data
-    tabla db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    ; Tabla de 64 caracteres (similar a Base64)
+    tablaCodificada: 
+        db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        ; índices 0..63
 
 section .text
+    global codificar
+
+; ---------------------------------------------------------
+; void codificar(uint8_t *input, uint64_t inputSize, char *output);
+; 
+; input      → RDI
+; inputSize  → RSI
+; output     → RDX
+; ---------------------------------------------------------
+
 codificar:
-    push rbp
-    mov rbp, rsp
-    push rbx
-    push r12
-    push r13
-    push r14
 
-    ; rdi = input
-    ; rsi = input_len
-    ; rdx = output
+    ; Guardamos punteros
+    mov r8, rdi        ; r8 → puntero al input
+    mov r9, rdx        ; r9 → puntero al output
+    mov rcx, rsi       ; rcx → tamaño del input
 
-    mov r12, rdi        ; input
-    mov r13, rsi        ; len
-    mov r14, rdx        ; output
-    mov rbx, tabla
+; Calcular cuántos bloques de 3 bytes hay
+    mov rax, rcx
+    mov rbx, 3
+    xor rdx, rdx
+    div rbx            ; rax = bloques de 3, rdx = resto (1 o 2 bytes)
 
-    xor rcx, rcx        ; index
+    mov r10, rax       ; bloques de 3
+    mov r11, rdx       ; resto (0,1,2) → lo llamamos "rellenoFinal"
 
-.loop:
-    cmp rcx, r13
-    jge .done
+; =========================================================
+; PROCESO BLOQUES COMPLETOS (3 bytes → 4 chars)
+; =========================================================
 
-    ;--------------------------------------
-    ; Cargar BYTE 1
-    ;--------------------------------------
-    movzx eax, byte [r12 + rcx]
-    inc rcx
-    shl eax, 16         ; guardar en los bits altos
+procesar_bloques:
 
-    ;--------------------------------------
-    ; Cargar BYTE 2 si existe
-    ;--------------------------------------
-    mov edx, eax        ; backup
-    cmp rcx, r13
-    jge .one_remaining
+    cmp r10, 0
+    je procesar_relleno_final
 
-    movzx r8d, byte [r12 + rcx]
-    inc rcx
-    shl r8d, 8
-    or eax, r8d
+    ; cargar 3 bytes
+    mov al,  [r8]
+    mov bl,  [r8+1]
+    mov cl,  [r8+2]
 
-    ;--------------------------------------
-    ; Cargar BYTE 3 si existe
-    ;--------------------------------------
-    cmp rcx, r13
-    jge .two_remaining
+    ; construir los 4 grupos de 6 bits
+    ; g0 = bits 7..2 del primer byte
+    mov edx, eax
+    shr edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9], dl
 
-    movzx r8d, byte [r12 + rcx]
-    inc rcx
-    or eax, r8d
-    jmp .encode_3bytes
+    ; g1 = (2 bits del primer byte << 4) | (4 bits altos del segundo byte)
+    mov edx, eax
+    and edx, 0b00000011
+    shl edx, 4
+    mov esi, ebx
+    shr esi, 4
+    or  edx, esi
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+1], dl
 
-;===============================================
-; 1 BYTE RESTANTE
-;===============================================
-.one_remaining:
-    ; EAX: XX 00 00 (bits útiles arriba)
+    ; g2 = (4 bits bajos del segundo byte << 2) | (2 bits altos del tercero)
+    mov edx, ebx
+    and edx, 0b00001111
+    shl edx, 2
+    mov esi, ecx
+    shr esi, 6
+    or  edx, esi
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+2], dl
 
-    mov r8d, eax
-    shr r8d, 18
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+    ; g3 = últimos 6 bits del tercer byte
+    mov edx, ecx
+    and edx, 0b00111111
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+3], dl
 
-    mov r8d, eax
-    shr r8d, 12
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+    ; avanzar punteros
+    add r8, 3
+    add r9, 4
 
-    mov byte [r14], '='
-    inc r14
-    mov byte [r14], '='
-    inc r14
-    jmp .done
+    dec r10
+    jmp procesar_bloques
 
-;===============================================
-; 2 BYTES RESTANTES
-;===============================================
-.two_remaining:
-    ; EAX: XX YY 00
 
-    mov r8d, eax
-    shr r8d, 18
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+; =========================================================
+; MANEJO DEL RESTO (rellenoFinal)
+; =========================================================
+procesar_relleno_final:
 
-    mov r8d, eax
-    shr r8d, 12
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+    cmp r11, 0
+    je fin_codificar
 
-    mov r8d, eax
-    shr r8d, 6
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+    cmp r11, 1
+    je caso_un_byte
 
-    mov byte [r14], '='
-    inc r14
-    jmp .done
+    cmp r11, 2
+    je caso_dos_bytes
 
-;===============================================
-; 3 BYTES COMPLETOS
-;===============================================
-.encode_3bytes:
-    mov r8d, eax
-    shr r8d, 18
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
 
-    mov r8d, eax
-    shr r8d, 12
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+; -----------------------
+; Caso: 1 byte sobrante
+; -----------------------
+caso_un_byte:
 
-    mov r8d, eax
-    shr r8d, 6
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+    mov al, [r8]
 
-    mov r8d, eax
-    and r8d, 0x3F
-    mov al, [rbx + r8]
-    mov [r14], al
-    inc r14
+    ; g0 = bits 7..2
+    mov edx, eax
+    shr edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9], dl
 
-    jmp .loop
+    ; g1 = últimos 2 bits << 4
+    mov edx, eax
+    and edx, 0b00000011
+    shl edx, 4
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+1], dl
 
-.done:
-    mov byte [r14], 0
+    ; llenar los últimos como '='
+    mov byte [r9+2], '='
+    mov byte [r9+3], '='
 
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    pop rbp
+    jmp fin_codificar
+
+
+; -----------------------
+; Caso: 2 bytes sobrantes
+; -----------------------
+caso_dos_bytes:
+
+    mov al, [r8]
+    mov bl, [r8+1]
+
+    ; g0
+    mov edx, eax
+    shr edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9], dl
+
+    ; g1
+    mov edx, eax
+    and edx, 0b00000011
+    shl edx, 4
+    mov esi, ebx
+    shr esi, 4
+    or edx, esi
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+1], dl
+
+    ; g2
+    mov edx, ebx
+    and edx, 0b00001111
+    shl edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+2], dl
+
+    ; último char es '='
+    mov byte [r9+3], '='
+
+    jmp fin_codificar
+
+
+fin_codificar:
     ret
