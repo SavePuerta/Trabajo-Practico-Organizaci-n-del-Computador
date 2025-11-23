@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern void codificar(const unsigned char* input, int input_size, char* output);
+
 unsigned char* leer_archivo(const char* nombre, size_t* file_size) {
     FILE* file = fopen(nombre, "rb");
     if (!file) {
@@ -19,8 +21,12 @@ unsigned char* leer_archivo(const char* nombre, size_t* file_size) {
         return NULL;
     }
     
-    fread(buffer, 1, *file_size, file);
-    fclose(file);
+    size_t read_bytes = fread(buffer, 1, *file_size, file);
+    if (read_bytes != *file_size) {
+        free(buffer);
+        fclose(file);
+        return NULL;
+    }
     
     return buffer;
     // buffer es el texto binario del archivo
@@ -40,7 +46,7 @@ int escribir_archivo_de_texto(const char* nombre, const char* data) {
 
 void codificar_archivo() {
     size_t input_size;
-    unsigned char* input_data = leer_archivo("inputBinario.bin", &input_size);
+    unsigned char* input_data = leer_archivo("codificacion.bin", &input_size);
     
     if (!input_data) {
         printf("Error: No se pudo leer inputBinario.bin\n");
@@ -61,13 +67,39 @@ void codificar_archivo() {
         return;
     }
     
-    // función en assembler
+    //input_data, input_size, output_data
     codificar(input_data, input_size, output_data);
     
-    if (write_text_file("outputTexto.txt", output_data)) {
-        printf("Archivo codificado exitosamente: outputTexto.txt\n");
-    }
+    // if (write_text_file("outputTexto.txt", output_data)) {
+    //     printf("Archivo codificado exitosamente: outputTexto.txt\n");
+    // }
     
     free(input_data);
     free(output_data);
+}
+
+
+int main() {
+    
+    printf("=== Codificador/Decodificador ===\n");
+    printf("1. Codificar\n");
+    printf("2. Decodificar\n");
+    printf("Seleccione opcion: ");
+    
+    int opcion = scanf("%d", &opcion);
+        
+    
+    switch (opcion) {
+        case 1:
+            codificar_archivo();
+            break;
+        case 2:
+            //decodificar_archivo();
+            break;
+        default:
+            printf("Opcion invalida\n");
+            break;
+    }
+    
+    return 0;
 }
