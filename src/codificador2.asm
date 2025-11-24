@@ -1,30 +1,15 @@
-; ============================================
-; codificador.asm
-; ============================================
-
 section .data
-    ; Tabla de 64 caracteres (similar a Base64)
     tablaCodificada: 
         db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-        ; índices 0..63
-
+    
 section .text
     global codificar
 
-; ---------------------------------------------------------
-; void codificar(uint8_t *input, uint64_t inputSize, char *output);
-; 
-; input      → RDI
-; inputSize  → RSI
-; output     → RDX
-; ---------------------------------------------------------
-
 codificar:
 
-    ; Guardamos punteros
-    mov r8, rdi        ; r8 → puntero al input
-    mov r9, rdx        ; r9 → puntero al output
-    mov rcx, rsi       ; rcx → tamaño del input
+    mov r8, rdi        ; r8  puntero al input
+    mov r9, rdx        ; r9  puntero al output
+    mov rcx, rsi       ; rcx  tamaño del input
 
 ; Calcular cuántos bloques de 3 bytes hay
     mov rax, rcx
@@ -33,30 +18,26 @@ codificar:
     div rbx            ; rax = bloques de 3, rdx = resto (1 o 2 bytes)
 
     mov r10, rax       ; bloques de 3
-    mov r11, rdx       ; resto (0,1,2) → lo llamamos "rellenoFinal"
-
-; =========================================================
-; PROCESO BLOQUES COMPLETOS (3 bytes → 4 chars)
-; =========================================================
+    mov r11, rdx       ; resto (0,1,2) 
 
 procesar_bloques:
 
     cmp r10, 0
-    je procesar_relleno_final
+    je procesar_resto
 
-    ; cargar 3 bytes
+    ; carga 3 bytes
     mov al,  [r8]
     mov bl,  [r8+1]
     mov cl,  [r8+2]
 
-    ; construir los 4 grupos de 6 bits
+    ; grupos de 6 bits, los g0, g1, g2 y g3
     ; g0 = bits 7..2 del primer byte
     mov edx, eax
     shr edx, 2
     mov dl, [tablaCodificada + rdx]
     mov [r9], dl
 
-    ; g1 = (2 bits del primer byte << 4) | (4 bits altos del segundo byte)
+    ; g1 = (2 bits del primer byte) y (4 bits altos del segundo byte)
     mov edx, eax
     and edx, 0b00000011
     shl edx, 4
@@ -66,7 +47,7 @@ procesar_bloques:
     mov dl, [tablaCodificada + rdx]
     mov [r9+1], dl
 
-    ; g2 = (4 bits bajos del segundo byte << 2) | (2 bits altos del tercero)
+    ; g2 = (4 bits bajos del segundo byte) y (2 bits altos del tercero)
     mov edx, ebx
     and edx, 0b00001111
     shl edx, 2
@@ -82,7 +63,8 @@ procesar_bloques:
     mov dl, [tablaCodificada + rdx]
     mov [r9+3], dl
 
-    ; avanzar punteros
+    ; se avanza en los punteros de input y output
+    ; para seguir con la codificación
     add r8, 3
     add r9, 4
 
@@ -90,10 +72,7 @@ procesar_bloques:
     jmp procesar_bloques
 
 
-; =========================================================
-; MANEJO DEL RESTO (rellenoFinal)
-; =========================================================
-procesar_relleno_final:
+procesar_resto:
 
     cmp r11, 0
     je fin_codificar
@@ -105,9 +84,9 @@ procesar_relleno_final:
     je caso_dos_bytes
 
 
-; -----------------------
-; Caso: 1 byte sobrante
-; -----------------------
+
+; 1 byte sobrante
+
 caso_un_byte:
 
     mov al, [r8]
@@ -132,9 +111,9 @@ caso_un_byte:
     jmp fin_codificar
 
 
-; -----------------------
-; Caso: 2 bytes sobrantes
-; -----------------------
+
+; 2 bytes sobrantes
+
 caso_dos_bytes:
 
     mov al, [r8]
