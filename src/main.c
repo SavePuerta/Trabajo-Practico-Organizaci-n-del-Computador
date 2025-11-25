@@ -3,6 +3,7 @@
 #include <string.h>
 
 extern void codificar(const unsigned char* input, int input_size, char* output);
+extern void decodificar(const char* input, int input_size, unsigned char* output);
 
 unsigned char* leer_archivo(const char* nombre, size_t* file_size) {
     FILE* file = fopen(nombre, "rb");
@@ -44,6 +45,17 @@ int escribir_archivo_de_texto(const char* nombre, const char* data) {
     return 1;
 }
 
+int escribir_archivo_binario(const char* nombre, const unsigned char* data, size_t size) {
+    FILE* file = fopen(nombre, "wb");
+    if (!file) {
+        printf("Error: No se pudo crear %s\n", nombre);
+        return 0;
+    }
+    fwrite(data, 1, size, file);
+    fclose(file);
+    return 1;
+}
+
 void codificar_archivo() {
     size_t input_size;
     unsigned char* input_data = leer_archivo("codificacion.bin", &input_size);
@@ -77,6 +89,33 @@ void codificar_archivo() {
     free(output_data);
 }
 
+void decodificar_archivo() {
+    size_t input_size;
+    char* input_data = (char*)leer_archivo("decodificacion.txt", &input_size);
+
+    if (!input_data) {
+        printf("Error: No se pudo leer decodificacion.txt\n");
+        return;
+    }
+
+    size_t output_size = (input_size / 4) * 3;
+    unsigned char* output_data = (unsigned char*)malloc(output_size);
+
+    if (!output_data) {
+        free(input_data);
+        printf("Error: Memoria insuficiente\n");
+        return;
+    }
+
+    decodificar(input_data, input_size, output_data);
+
+    if (escribir_archivo_binario("outputBinario.txt", output_data, output_size)) {
+        printf("Archivo decodificado exitosamente: outputBinario.bin\n");
+    }
+
+    free(input_data);
+    free(output_data);
+}
 
 int main() {
     
@@ -94,7 +133,7 @@ int main() {
             codificar_archivo();
             break;
         case 2:
-            //decodificar_archivo();
+            decodificar_archivo();
             break;
         default:
             printf("Opcion invalida\n");
