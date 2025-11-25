@@ -14,9 +14,9 @@
 void codificar(const unsigned char* input, int input_size, char* output);
 ```  
 
-input      → RDI  
-inputSize  → RSI  
-output     → RDX  
+input      -> RDI  
+inputSize  -> RSI  
+output     -> RDX  
 
 después se pasan a los registros r8, r9 y rcx.
 

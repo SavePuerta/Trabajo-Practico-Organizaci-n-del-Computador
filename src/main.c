@@ -110,7 +110,7 @@ void decodificar_archivo() {
     decodificar(input_data, input_size, output_data);
 
     if (escribir_archivo_binario("outputBinario.txt", output_data, output_size)) {
-        printf("Archivo decodificado exitosamente: outputBinario.bin\n");
+        printf("Archivo decodificado exitosamente: outputBinario.txt\n");
     }
 
     free(input_data);
