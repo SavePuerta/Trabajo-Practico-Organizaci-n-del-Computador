@@ -1,146 +1,152 @@
 section .data
-    tabla db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    tablaCodificada: 
+        db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     
 section .text
-global codificar
+    global codificar
 
 codificar:
-    push rbp
-    mov rbp, rsp
-    push rbx
-    push r12
-    push r13
-    push r14
-    push r15
-    
-    ; rdi = input, rsi = input_len, rdx = output
-    mov r12, rdi        ; input pointer
-    mov r13, rsi        ; input length
-    mov r14, rdx        ; output pointer
-    mov rbx, tabla
-    xor rcx, rcx        ; contador de bytes procesados
 
-.encode_loop:
-    cmp rcx, r13
-    jge .encode_done
-    
-    ; Cargar 3 bytes de manera segura
-    xor eax, eax
-    mov al, [r12 + rcx]
-    shl eax, 16
-    inc rcx
-    cmp rcx, r13
-    jge .load_remaining
-    
-    mov al, [r12 + rcx]
-    shl eax, 8
-    inc rcx
-    cmp rcx, r13
-    jge .load_remaining
-    
-    mov al, [r12 + rcx]
-    inc rcx
-    
-.encode_triplet:
-    ; Reordenar bytes (big-endian)
-    bswap eax
-    shr eax, 8
-    
-    ; Extraer los 4 grupos de 6 bits
-    mov r8, rax
-    shr r8, 18
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov r8, rax
-    shr r8, 12
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov r8, rax
-    shr r8, 6
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov r8, rax
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    jmp .encode_loop
+    mov r8, rdi        ; r8  puntero al input
+    mov r9, rdx        ; r9  puntero al output
+    mov rcx, rsi       ; rcx  tamaño del input
 
-.load_remaining:
-    cmp rcx, r13
-    je .one_byte_remaining
-    
-.two_bytes_remaining:
-    ; 2 bytes restantes
-    bswap eax
-    shr eax, 8
-    
-    mov r8, rax
-    shr r8, 18
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov r8, rax
-    shr r8, 12
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov r8, rax
-    shr r8, 6
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov byte [r14], '='
-    inc r14
-    jmp .encode_done
+; Calcular cuántos bloques de 3 bytes hay
+    mov rax, rcx
+    mov rbx, 3
+    xor rdx, rdx
+    div rbx            ; rax = bloques de 3, rdx = resto (1 o 2 bytes)
 
-.one_byte_remaining:
-    ; 1 byte restante
-    bswap eax
-    shr eax, 8
-    
-    mov r8, rax
-    shr r8, 18
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov r8, rax
-    shr r8, 12
-    and r8, 0x3F
-    mov r15b, [rbx + r8]
-    mov [r14], r15b
-    inc r14
-    
-    mov byte [r14], '='
-    inc r14
-    mov byte [r14], '='
-    inc r14
+    mov r10, rax       ; bloques de 3
+    mov r11, rdx       ; resto (0,1,2) 
 
-.encode_done:
-    mov byte [r14], 0   ; Null terminator
-    
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    pop rbp
+procesar_bloques:
+
+    cmp r10, 0
+    je procesar_resto
+
+    ; carga 3 bytes
+    mov al,  [r8]
+    mov bl,  [r8+1]
+    mov cl,  [r8+2]
+
+    ; grupos de 6 bits, los g0, g1, g2 y g3
+    ; g0 = bits 7..2 del primer byte
+    mov edx, eax
+    shr edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9], dl
+
+    ; g1 = (2 bits del primer byte) y (4 bits altos del segundo byte)
+    mov edx, eax
+    and edx, 0b00000011
+    shl edx, 4
+    mov esi, ebx
+    shr esi, 4
+    or  edx, esi
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+1], dl
+
+    ; g2 = (4 bits bajos del segundo byte) y (2 bits altos del tercero)
+    mov edx, ebx
+    and edx, 0b00001111
+    shl edx, 2
+    mov esi, ecx
+    shr esi, 6
+    or  edx, esi
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+2], dl
+
+    ; g3 = últimos 6 bits del tercer byte
+    mov edx, ecx
+    and edx, 0b00111111
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+3], dl
+
+    ; se avanza en los punteros de input y output
+    ; para seguir con la codificación
+    add r8, 3
+    add r9, 4
+
+    dec r10
+    jmp procesar_bloques
+
+
+procesar_resto:
+
+    cmp r11, 0
+    je fin_codificar
+
+    cmp r11, 1
+    je caso_un_byte
+
+    cmp r11, 2
+    je caso_dos_bytes
+
+
+
+; 1 byte sobrante
+
+caso_un_byte:
+
+    mov al, [r8]
+
+    ; g0 = bits 7..2
+    mov edx, eax
+    shr edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9], dl
+
+    ; g1 = últimos 2 bits << 4
+    mov edx, eax
+    and edx, 0b00000011
+    shl edx, 4
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+1], dl
+
+    ; llenar los últimos como '='
+    mov byte [r9+2], '='
+    mov byte [r9+3], '='
+
+    jmp fin_codificar
+
+
+
+; 2 bytes sobrantes
+
+caso_dos_bytes:
+
+    mov al, [r8]
+    mov bl, [r8+1]
+
+    ; g0
+    mov edx, eax
+    shr edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9], dl
+
+    ; g1
+    mov edx, eax
+    and edx, 0b00000011
+    shl edx, 4
+    mov esi, ebx
+    shr esi, 4
+    or edx, esi
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+1], dl
+
+    ; g2
+    mov edx, ebx
+    and edx, 0b00001111
+    shl edx, 2
+    mov dl, [tablaCodificada + rdx]
+    mov [r9+2], dl
+
+    ; último char es '='
+    mov byte [r9+3], '='
+
+    jmp fin_codificar
+
+
+fin_codificar:
     ret
