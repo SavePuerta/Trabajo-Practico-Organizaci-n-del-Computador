@@ -13,16 +13,16 @@ section .text
     global decodificar
 
 decodificar:
-    sub rsp, 4096         ; Reserva espacio en la pila
+    sub rsp, 4096      ; Reserva espacio en la pila
     mov r8, rdi        ; input
     mov r9, rsi        ; input_size
     mov r10, rdx       ; output
     xor r11, r11       ; index input
     xor r12, r12       ; index output
 
-decode_loop:
+loop_decodificar:
     cmp r11, r9
-    jae end_decode
+    jae finalizar_decodificacion
 
     movzx eax, byte [r8 + r11]
     cmp al, '='
@@ -30,31 +30,28 @@ decode_loop:
 
     movzx ebx, byte [tablaDecodificada + rax]
     cmp bl, 255
-    je skip_invalid
+    je saltear_invalido
 
     mov [rsp + r12], bl
     inc r12
 
-skip_invalid:
+saltear_invalido:
     inc r11
-    jmp decode_loop
+    jmp loop_decodificar
 
 padding:
-    ; termina el procesamiento en padding
-    jmp end_decode
+    jmp finalizar_decodificacion
 
-end_decode:
-    ; r12 = cantidad de bytes decodificados
-    ; reconstruir los bytes originales de cada grupo de 4
+finalizar_decodificacion:
     xor r11, r11
     xor r13, r13
 
-rebuild_loop:
+rearmar_loop:
     cmp r11, r12
-    jb process_group
-    jmp finish
+    jb procesar_grupo
+    jmp finalizar
 
-process_group:
+procesar_grupo:
     mov al, [rsp + r11]
     mov bl, [rsp + r11 + 1]
     mov cl, [rsp + r11 + 2]
@@ -87,8 +84,8 @@ process_group:
 
     add r11, 4
     add r13, 3
-    jmp rebuild_loop
+    jmp rearmar_loop
 
-finish:
-    add rsp, 4096         ; Libera espacio antes de retornar
+finalizar:
+    add rsp, 4096         ; Libera espacio antes de devolver
     ret
