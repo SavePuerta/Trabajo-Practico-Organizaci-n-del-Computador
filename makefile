@@ -1,9 +1,10 @@
 start:
-	cd ./src && gcc main.c -o main && ./main
+	make codificador
 
 codificador:
 	cd src && \
-	nasm -f elf64 -g -F dwarf -o codificador.o codificador2.asm && \
+	nasm -f elf64 -g -F dwarf -o codificador.o codificador.asm && \
+	nasm -f elf64 -g -F dwarf -o decodificador.o decodificador.asm && \
 	gcc -c main.c -o main.o && \
-	gcc -no-pie -z noexecstack -o codificador main.o codificador.o && \
-	./codificador
+	gcc -no-pie -z noexecstack -o programa main.o codificador.o decodificador.o && \
+	./programa 

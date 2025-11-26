@@ -58,7 +58,7 @@ int escribir_archivo_binario(const char* nombre, const unsigned char* data, size
 
 void codificar_archivo() {
     size_t input_size;
-    unsigned char* input_data = leer_archivo("codificacion.bin", &input_size);
+    unsigned char* input_data = leer_archivo("inputBinario.bin", &input_size);
     
     if (!input_data) {
         printf("Error: No se pudo leer inputBinario.bin\n");
@@ -91,7 +91,7 @@ void codificar_archivo() {
 
 void decodificar_archivo() {
     size_t input_size;
-    char* input_data = (char*)leer_archivo("decodificacion.txt", &input_size);
+    char* input_data = (char*)leer_archivo("inputTexto.txt", &input_size);
 
     if (!input_data) {
         printf("Error: No se pudo leer decodificacion.txt\n");
@@ -110,7 +110,7 @@ void decodificar_archivo() {
     decodificar(input_data, input_size, output_data);
 
     if (escribir_archivo_binario("outputBinario.txt", output_data, output_size)) {
-        printf("Archivo decodificado exitosamente: outputBinario.bin\n");
+        printf("Archivo decodificado exitosamente: outputBinario.txt\n");
     }
 
     free(input_data);
